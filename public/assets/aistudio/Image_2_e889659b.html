@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+  <title>Mnemosine - Jogo da Memória Filosófico</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            cinzel: ['Cinzel', 'serif'],
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            gold: {
+              300: '#f6e05e',
+              400: '#ecc94b',
+              500: '#d4af37',
+              600: '#b78b1e',
+              700: '#976e15',
+              800: '#854d0e',
+              900: '#78350f',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 3D Flip Mechanics */
+    .perspective-1000 { perspective: 1000px; }
+    .transform-style-3d { transform-style: preserve-3d; }
+    .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .rotate-y-180 { transform: rotateY(180deg); }
+    .card-inner { transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1); }
+    .card.flipped .card-inner { transform: rotateY(180deg); }
+    .card.matched .card-inner { transform: rotateY(180deg); }
+    .card.matched .front-card {
+      box-shadow: 0 0 18px rgba(212, 175, 55, 0.8), inset 0 0 10px rgba(212, 175, 55, 0.4);
+      border-color: #d4af37 !important;
+    }
+
+    /* Modal Animation */
+    .modal-backdrop { backdrop-filter: blur(8px); transition: opacity 0.25s ease, visibility 0.25s ease; }
+    .modal-content { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.3); border-radius: 4px; }
+
+    /* Light Mode Contrast Enhancements */
+    body.light-mode { background-color: #f7f3ec !important; color: #1a1510 !important; }
+    body.light-mode header { border-color: #d8cebe !important; }
+    body.light-mode #theme-toggle-container { background-color: #ede6d8 !important; border-color: #d3c6b2 !important; }
+    body.light-mode #level-card,
+    body.light-mode #turn-card,
+    body.light-mode #metrics-card {
+      background-color: #ffffff !important;
+      border-color: #ded4c3 !important;
+      box-shadow: 0 4px 14px rgba(60, 47, 30, 0.08) !important;
+    }
+    body.light-mode #level-card .bg-gold-500\/20 { background-color: #fef3c7 !important; color: #78350f !important; border-color: #b45309 !important; }
+    body.light-mode #card-count-label { color: #272118 !important; font-weight: 600 !important; }
+    body.light-mode #header-players-count { color: #854d0e !important; font-weight: 700 !important; }
+    body.light-mode #current-round-text { color: #854d0e !important; }
+    body.light-mode #total-rounds-text { color: #1a1510 !important; font-weight: 700 !important; }
+    body.light-mode #level-card span.italic { color: #574c3d !important; font-weight: 500 !important; }
+    body.light-mode #turn-card span.uppercase { color: #1a1510 !important; }
+    body.light-mode #turn-card span.turn-rule-tag { background-color: #f3ece0 !important; color: #4a3821 !important; border-color: #d8cdba !important; font-weight: 600 !important; }
+    body.light-mode .player-card-active { background-color: #fffdf5 !important; border-color: #b45309 !important; box-shadow: 0 3px 10px rgba(180, 83, 9, 0.16) !important; }
+    body.light-mode .player-card-active .player-name-text { color: #632e05 !important; }
+    body.light-mode .player-card-active .player-score-text { color: #78350f !important; }
+    body.light-mode .player-card-active .player-score-unit { color: #78350f !important; }
+    body.light-mode .player-card-inactive { background-color: #fbf9f4 !important; border-color: #ded4c3 !important; opacity: 0.95 !important; }
+    body.light-mode .player-card-inactive .player-name-text { color: #3b3123 !important; }
+    body.light-mode .player-card-inactive .player-score-text { color: #1a1510 !important; }
+    body.light-mode .player-card-inactive .player-score-unit { color: #6a5d4d !important; }
+    body.light-mode #metrics-card .metric-label { color: #4f4232 !important; font-weight: 600 !important; }
+    body.light-mode #moves-count { color: #1a1510 !important; }
+    body.light-mode #game-timer { color: #854d0e !important; }
+    body.light-mode #pairs-matched { color: #854d0e !important; }
+    body.light-mode #metrics-card .divide-slate-700\/40 > div { border-color: #e6ded0 !important; }
+    body.light-mode #metrics-card .bg-slate-800 { background-color: #e5ddcf !important; }
+    body.light-mode #bottom-bar { background-color: rgba(255, 255, 255, 0.96) !important; border-color: #ded4c3 !important; box-shadow: 0 -4px 18px rgba(40, 30, 20, 0.08) !important; }
+    body.light-mode #bottom-bar button:not(#btn-peek) { color: #3b3123 !important; }
+    body.light-mode #bottom-bar button:not(#btn-peek):hover { color: #854d0e !important; }
+    body.light-mode #btn-peek { color: #854d0e !important; }
+    body.light-mode #btn-peek #peek-label { color: #78350f !important; }
+    body.light-mode #peek-badge { background-color: #b45309 !important; color: #ffffff !important; border-color: #ffffff !important; }
+  </style>
+</head>
+<body class="bg-[#0b101b] text-slate-100 font-sans min-h-screen antialiased select-none pb-24 transition-colors duration-300">
+  <div class="max-w-md mx-auto min-h-screen flex flex-col px-4 pt-3 relative" id="app-root">
+    
+    <!-- Top App Bar -->
+    <header class="flex items-center justify-between py-2 border-b border-amber-900/30 mb-2">
+      <div class="flex items-center gap-2">
+        <button class="p-1.5 rounded-lg hover:bg-slate-800/60 text-slate-300 active:scale-95 transition" id="btn-back" onclick="restartGame()" title="Reiniciar Partida">
+          <span class="material-symbols-outlined text-[22px]">arrow_back</span>
+        </button>
+        <div class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-gold-500 text-[26px]">temple_hindu</span>
+          <h1 class="font-cinzel text-xl font-bold tracking-wider text-gold-500">MNEMOSINE</h1>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <!-- Theme Toggle -->
+        <div class="flex items-center bg-[#151c2e] p-1 rounded-full border border-amber-900/40" id="theme-toggle-container">
+          <button class="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-amber-300 transition" id="btn-theme-light" onclick="setTheme('light')">
+            <span class="material-symbols-outlined text-[15px]">light_mode</span>
+            <span>Claro</span>
+          </button>
+          <button class="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gold-500 text-slate-950 font-bold shadow-sm transition" id="btn-theme-dark" onclick="setTheme('dark')">
+            <span class="material-symbols-outlined text-[15px]">dark_mode</span>
+            <span>Escuro</span>
+          </button>
+        </div>
+        <!-- About Button -->
+        <button class="p-1.5 rounded-full hover:bg-slate-800/60 text-gold-400 hover:text-gold-300 border border-amber-900/40 bg-[#151c2e]/60 active:scale-95 transition flex items-center justify-center" id="btn-about" onclick="openAboutModal()" title="Sobre o Jogo / Informações">
+          <span class="material-symbols-outlined text-[20px]">info</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Top Mode Selector: Modo Pensadores / Modo Conceitos -->
+    <div class="grid grid-cols-2 gap-2 mb-3 bg-[#111728] p-1 rounded-2xl border border-amber-900/40 shadow-sm" id="game-mode-selector">
+      <button id="btn-mode-thinkers" onclick="switchGameMode('thinkers')" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-cinzel text-xs font-bold transition bg-gold-500 text-slate-950 shadow-md">
+        <span class="material-symbols-outlined text-[16px]">psychology</span>
+        <span>Modo Pensadores</span>
+      </button>
+      <button id="btn-mode-concepts" onclick="switchGameMode('concepts')" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-cinzel text-xs font-semibold text-slate-300 hover:text-gold-400 hover:bg-slate-800/50 transition">
+        <span class="material-symbols-outlined text-[16px]">auto_stories</span>
+        <span>Modo Conceitos</span>
+      </button>
+    </div>
+
+    <!-- Game Information / Level Header -->
+    <section class="bg-[#131b2e] rounded-2xl p-3 border border-amber-900/40 shadow-md mb-3" id="level-card">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="bg-gold-500/20 text-gold-400 font-cinzel text-xs font-bold px-2.5 py-0.5 rounded-md border border-gold-500/40" id="badge-mode-title">PANTEÃO ATIVO</span>
+          <span class="text-xs font-medium text-slate-300" id="card-count-label">6 Pares sorteados de 50</span>
+        </div>
+        <div class="flex items-center gap-1 text-xs text-amber-300 font-medium">
+          <span class="material-symbols-outlined text-[16px] text-gold-500">emoji_events</span>
+          <span id="header-players-count">2 Jogadores</span>
+        </div>
+      </div>
+      <div class="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-700/40 pt-2">
+        <div class="flex items-center gap-1">
+          <span class="material-symbols-outlined text-[15px] text-gold-400">casino</span>
+          <span>Rodada <strong class="text-gold-400 font-bold" id="current-round-text">1</strong> de <span id="total-rounds-text">3</span></span>
+        </div>
+        <span class="text-slate-400 italic" id="sub-mode-description">Bustos em mármore & bronze no acervo</span>
+      </div>
+    </section>
+
+    <!-- Player Turn Section -->
+    <section class="bg-[#131b2e] rounded-2xl p-3 border border-amber-900/40 shadow-md mb-3" id="turn-card">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-gold-400 text-[18px]">sports_esports</span>
+          <span class="text-xs font-bold tracking-wider text-slate-200 uppercase">Turno dos Jogadores</span>
+        </div>
+        <span class="turn-rule-tag text-[10px] bg-slate-800/80 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">Ganha quem fizer mais pares</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2" id="players-turn-container"></div>
+    </section>
+
+    <!-- Metrics Bar -->
+    <section class="bg-[#131b2e] rounded-2xl p-2.5 border border-amber-900/40 shadow-md mb-3" id="metrics-card">
+      <div class="grid grid-cols-3 divide-x divide-slate-700/40 text-center">
+        <div class="px-2">
+          <div class="metric-label flex items-center justify-center gap-1 text-[11px] text-slate-400 mb-0.5">
+            <span class="material-symbols-outlined text-[14px]">swap_horiz</span>
+            <span>Movimentos</span>
+          </div>
+          <div class="text-lg font-bold font-cinzel text-slate-100" id="moves-count">0</div>
+        </div>
+        <div class="px-2">
+          <div class="metric-label flex items-center justify-center gap-1 text-[11px] text-slate-400 mb-0.5">
+            <span class="material-symbols-outlined text-[14px] text-amber-400">timer</span>
+            <span>Tempo</span>
+          </div>
+          <div class="text-lg font-bold font-cinzel text-gold-400 tracking-wider" id="game-timer">00:00</div>
+        </div>
+        <div class="px-2">
+          <div class="metric-label flex items-center justify-center gap-1 text-[11px] text-slate-400 mb-0.5">
+            <span class="material-symbols-outlined text-[14px] text-gold-400">style</span>
+            <span>Pares</span>
+          </div>
+          <div class="text-lg font-bold font-cinzel text-gold-400">
+            <span id="pairs-matched">0</span><span class="text-xs text-slate-400 font-sans font-normal"> /6</span>
+          </div>
+        </div>
+      </div>
+      <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-2">
+        <div class="bg-gradient-to-r from-amber-600 to-gold-400 h-full rounded-full transition-all duration-300" id="pairs-progress-bar" style="width: 0%"></div>
+      </div>
+    </section>
+
+    <!-- Status Banner -->
+    <div class="rounded-xl px-3 py-2 bg-gradient-to-r from-amber-950/60 via-amber-900/40 to-amber-950/60 border border-gold-500/50 text-amber-300 text-xs font-semibold flex items-center justify-center gap-2 mb-3 shadow-inner banner-memorize" id="status-banner">
+      <span class="material-symbols-outlined text-gold-400 text-[18px]">auto_awesome</span>
+      <span id="banner-text">Início da Partida: Memorize! (7s) • Todas visíveis</span>
+    </div>
+
+    <!-- 3x4 Cards Grid Board -->
+    <main class="grid grid-cols-3 gap-2 flex-grow mb-4" id="board"></main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0d1322]/95 backdrop-blur-md border-t border-amber-900/40 px-4 py-2.5 flex items-center justify-around z-30 shadow-2xl" id="bottom-bar">
+      <button class="flex flex-col items-center gap-1 text-slate-300 hover:text-gold-400 active:scale-95 transition" onclick="openConfigModal()">
+        <span class="material-symbols-outlined text-[24px]">groups</span>
+        <span class="text-[11px] font-semibold">Partida</span>
+      </button>
+      <button class="flex flex-col items-center gap-1 text-gold-400 hover:text-gold-300 active:scale-95 transition relative" id="btn-peek" onclick="triggerPeek()">
+        <div class="relative flex items-center justify-center">
+          <span class="material-symbols-outlined text-[26px]">visibility</span>
+          <span class="absolute -top-1.5 -right-2 bg-gold-500 text-slate-950 text-[9px] font-black px-1 rounded-full border border-slate-900" id="peek-badge">10s</span>
+        </div>
+        <span class="text-[11px] font-bold text-gold-400" id="peek-label">Revelado (10s)</span>
+      </button>
+      <button class="flex flex-col items-center gap-1 text-slate-300 hover:text-gold-400 active:scale-95 transition" onclick="restartGame()">
+        <span class="material-symbols-outlined text-[24px]">replay</span>
+        <span class="text-[11px] font-semibold">Reiniciar</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Modal: Sobre o Jogo -->
+  <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 modal-backdrop opacity-0 pointer-events-none transition-all duration-300" id="modal-about" onclick="handleAboutBackdropClick(event)">
+    <div class="bg-[#12192c] border border-amber-900/50 w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl modal-content transform translate-y-8 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-700/60 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-gold-400 text-2xl">auto_stories</span>
+          <h2 class="font-cinzel text-lg sm:text-xl font-bold text-gold-400">Jogo Mnemosine</h2>
+        </div>
+        <button class="p-1 rounded-full text-slate-400 hover:text-white transition" onclick="closeAboutModal()" title="Fechar">
+          <span class="material-symbols-outlined text-2xl">close</span>
+        </button>
+      </div>
+      <div class="mb-4 text-xs sm:text-sm text-slate-300 leading-relaxed bg-slate-900/60 p-3.5 rounded-xl border border-amber-900/30">
+        <p class="text-justify">
+          O <strong class="text-gold-400 font-semibold">Jogo Mnemosine</strong> foi criado por <strong class="text-slate-100 font-semibold">Patrícia Silveira Penha</strong>, com o auxílio de ferramentas de Inteligência Artificial (IA), com a finalidade de contribuir para o ensino e a aprendizagem da Filosofia de maneira lúdica, dinâmica e significativa.
+        </p>
+      </div>
+      <div class="mb-4 bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-gold-400 text-lg">school</span>
+          <h3 class="font-cinzel text-xs font-bold text-gold-400 uppercase tracking-wider">Autora e Formação</h3>
+        </div>
+        <p class="text-xs sm:text-sm text-slate-200 mb-2 font-medium">
+          <span class="text-gold-400 font-bold">Autora:</span> Patrícia Silveira Penha
+        </p>
+        <ul class="space-y-1.5 text-xs text-slate-300 list-none">
+          <li class="flex items-start gap-2">
+            <span class="material-symbols-outlined text-gold-400 text-[14px] shrink-0 mt-0.5">verified</span>
+            <span>Doutoranda em Filosofia (UFC).</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="material-symbols-outlined text-gold-400 text-[14px] shrink-0 mt-0.5">verified</span>
+            <span>Mestra em Filosofia pela Universidade Federal do Piauí (UFPI), na linha de pesquisa Filosofia Prática.</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="material-symbols-outlined text-gold-400 text-[14px] shrink-0 mt-0.5">verified</span>
+            <span>Especialista em Filosofia da Educação pela Universidade Estadual do Ceará (UECE).</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="material-symbols-outlined text-gold-400 text-[14px] shrink-0 mt-0.5">verified</span>
+            <span>Graduada em Filosofia (Licenciatura) pela Universidade Estadual do Ceará (UECE).</span>
+          </li>
+        </ul>
+      </div>
+      <div class="mb-5 bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-gold-400 text-lg">psychology</span>
+          <h3 class="font-cinzel text-xs font-bold text-gold-400 uppercase tracking-wider">Objetivo do Jogo</h3>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed mb-3 text-justify">
+          O Jogo Mnemosine tem como objetivo estimular a memória dos estudantes, favorecendo a identificação e a memorização dos nomes de filósofos e filósofas, bem como de conceitos filosóficos associados a pensadores e pensadoras relevantes da história da Filosofia.
+        </p>
+        <p class="text-xs text-slate-300 leading-relaxed text-justify">
+          Mais do que exercitar a memória, o jogo pretende aproximar os estudantes do pensamento filosófico, valorizando a diversidade de ideias e a contribuição de diferentes pensadores e pensadoras para a construção do conhecimento.
+        </p>
+      </div>
+      <button class="w-full py-2.5 bg-gradient-to-r from-amber-600 via-gold-500 to-amber-600 text-slate-950 font-cinzel font-bold text-xs sm:text-sm rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition flex items-center justify-center gap-2" onclick="closeAboutModal()">
+        <span class="material-symbols-outlined text-[18px]">check_circle</span>
+        <span>Entendido / Fechar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: Configuração da Partida -->
+  <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 modal-backdrop opacity-0 pointer-events-none transition-all duration-300" id="modal-config" onclick="handleConfigBackdropClick(event)">
+    <div class="bg-[#12192c] border border-amber-900/50 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl modal-content transform translate-y-8 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-700/60 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-gold-400">tune</span>
+          <h2 class="font-cinzel text-lg font-bold text-gold-400">Configurar Partida</h2>
+        </div>
+        <button class="p-1 rounded-full text-slate-400 hover:text-white" onclick="closeConfigModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>Jogadores na Mesa</span>
+          <span class="text-gold-400 text-xs font-bold" id="modal-selected-players-label">2 Filósofos</span>
+        </label>
+        <div class="grid grid-cols-4 gap-2">
+          <button class="py-2 rounded-xl border border-slate-700 text-xs font-bold flex flex-col items-center gap-1 hover:border-gold-500 transition" id="btn-p-1" onclick="selectPlayers(1)" type="button">
+            <span class="material-symbols-outlined text-[18px]">person</span>
+            <span>1 Solo</span>
+          </button>
+          <button class="py-2 rounded-xl border-2 border-gold-500 bg-gold-500/10 text-gold-300 text-xs font-bold flex flex-col items-center gap-1 hover:border-gold-500 transition" id="btn-p-2" onclick="selectPlayers(2)" type="button">
+            <span class="material-symbols-outlined text-[18px]">group</span>
+            <span>2 Dupla</span>
+          </button>
+          <button class="py-2 rounded-xl border border-slate-700 text-xs font-bold flex flex-col items-center gap-1 hover:border-gold-500 transition" id="btn-p-3" onclick="selectPlayers(3)" type="button">
+            <span class="material-symbols-outlined text-[18px]">groups</span>
+            <span>3 Trio</span>
+          </button>
+          <button class="py-2 rounded-xl border border-slate-700 text-xs font-bold flex flex-col items-center gap-1 hover:border-gold-500 transition" id="btn-p-4" onclick="selectPlayers(4)" type="button">
+            <span class="material-symbols-outlined text-[18px]">diversity_3</span>
+            <span>4 Quarteto</span>
+          </button>
+        </div>
+      </div>
+      <div class="mb-4 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
+        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Nomes das Equipes ou Filósofos</label>
+        <div class="grid grid-cols-2 gap-2" id="player-names-inputs">
+          <div>
+            <span class="text-[10px] text-gold-400 font-bold">Jogador / Equipe 1:</span>
+            <input class="w-full bg-[#0a101d] border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-100 font-semibold focus:border-gold-500 outline-none" id="input-p0" type="text" value="Sócrates"/>
+          </div>
+          <div>
+            <span class="text-[10px] text-gold-400 font-bold">Jogador / Equipe 2:</span>
+            <input class="w-full bg-[#0a101d] border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-100 font-semibold focus:border-gold-500 outline-none" id="input-p1" type="text" value="Platão"/>
+          </div>
+          <div class="hidden" id="input-p2-wrapper">
+            <span class="text-[10px] text-gold-400 font-bold">Jogador / Equipe 3:</span>
+            <input class="w-full bg-[#0a101d] border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-100 font-semibold focus:border-gold-500 outline-none" id="input-p2" type="text" value="Hannah Arendt"/>
+          </div>
+          <div class="hidden" id="input-p3-wrapper">
+            <span class="text-[10px] text-gold-400 font-bold">Jogador / Equipe 4:</span>
+            <input class="w-full bg-[#0a101d] border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-100 font-semibold focus:border-gold-500 outline-none" id="input-p3" type="text" value="Hipátia"/>
+          </div>
+        </div>
+      </div>
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>Duração da Partida</span>
+          <span class="text-gold-400 text-xs font-bold" id="modal-selected-rounds-label">3 Rodadas (Clássica)</span>
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="p-2.5 rounded-xl border border-slate-700 text-left hover:border-gold-500 transition" id="btn-r-1" onclick="selectRounds(1)" type="button">
+            <div class="font-bold text-xs text-slate-200">1 Rodada</div>
+            <div class="text-[10px] text-slate-400">Partida rápida e decisiva</div>
+          </button>
+          <button class="p-2.5 rounded-xl border-2 border-gold-500 bg-gold-500/10 text-left hover:border-gold-500 transition" id="btn-r-3" onclick="selectRounds(3)" type="button">
+            <div class="font-bold text-xs text-gold-300">3 Rodadas</div>
+            <div class="text-[10px] text-slate-300">Padrão equilibrado</div>
+          </button>
+          <button class="p-2.5 rounded-xl border border-slate-700 text-left hover:border-gold-500 transition" id="btn-r-5" onclick="selectRounds(5)" type="button">
+            <div class="font-bold text-xs text-slate-200">5 Rodadas</div>
+            <div class="text-[10px] text-slate-400">Torneio dos Filósofos</div>
+          </button>
+          <button class="p-2.5 rounded-xl border border-slate-700 text-left hover:border-gold-500 transition" id="btn-r-7" onclick="selectRounds(7)" type="button">
+            <div class="font-bold text-xs text-slate-200">7 Rodadas</div>
+            <div class="text-[10px] text-slate-400">Maratona de Mnemosine</div>
+          </button>
+        </div>
+      </div>
+      <button class="w-full py-3 bg-gradient-to-r from-amber-600 via-gold-500 to-amber-600 text-slate-950 font-cinzel font-bold text-sm rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition flex items-center justify-center gap-2" onclick="applyGameConfig()">
+        <span class="material-symbols-outlined text-[20px]">play_circle</span>
+        <span>Iniciar com essas Configurações</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: Fim de Partida & Campeão -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 modal-backdrop opacity-0 pointer-events-none transition-all duration-300" id="modal-victory">
+    <div class="bg-[#12192c] border-2 border-gold-500/80 w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl modal-content transform scale-90">
+      <div class="w-16 h-16 rounded-full bg-gold-500/20 border-2 border-gold-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-gold-500/20">
+        <span class="material-symbols-outlined text-gold-400 text-3xl">emoji_events</span>
+      </div>
+      <div class="text-xs uppercase tracking-widest text-gold-400 font-bold mb-1">Panteão Conquistado</div>
+      <h2 class="font-cinzel text-2xl font-bold text-slate-100 mb-1" id="winner-title">Sócrates Venceu!</h2>
+      <p class="text-xs text-slate-300 mb-2" id="winner-subtitle">Parabéns! O confronto filosófico terminou com sabedoria.</p>
+      <div class="inline-flex items-center gap-1.5 bg-gold-500/10 border border-gold-500/40 rounded-full px-3 py-1 mb-4 text-xs text-gold-400 font-semibold">
+        <span class="material-symbols-outlined text-[15px]">timer</span>
+        <span>Tempo Decorrido: <strong class="font-cinzel" id="victory-total-time">00:00</strong></span>
+      </div>
+      <div class="bg-slate-900/80 rounded-2xl p-3 border border-slate-700/60 mb-5 text-left" id="victory-scores-list">
+        <div class="text-[11px] font-bold text-gold-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>Acerto de Pares por Jogador</span>
+          <span class="text-[10px] text-slate-400" id="victory-rounds-label">3 Rodadas</span>
+        </div>
+        <div class="space-y-2" id="victory-players-breakdown"></div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button class="w-full py-2.5 bg-gradient-to-r from-amber-600 via-gold-500 to-amber-600 text-slate-950 font-cinzel font-bold text-xs rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition flex items-center justify-center gap-1.5" id="btn-next-action" onclick="nextRoundOrRestart()">
+          <span class="material-symbols-outlined text-[18px]">replay</span>
+          <span id="btn-victory-text">Jogar Novamente</span>
+        </button>
+        <button class="w-full py-2 bg-slate-800 text-slate-300 font-medium text-xs rounded-xl hover:bg-slate-700 transition" onclick="closeVictoryModal()">
+          Fechar Placar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 6 Iconic Philosophers & Concepts with Ultra-Realistic 3D Busts
+    const PHILOSOPHERS = [
+      {
+        id: 'socrates',
+        name: 'SÓCRATES',
+        concept: 'Método Socrático & Maiêutica',
+        conceptTitle: 'Maiêutica & Método Socrático',
+        conceptDescription: 'O parto das ideias por meio de diálogos e questionamentos constantes.',
+        era: 'Antiguidade',
+        icon: 'lightbulb',
+        image: 'https://lh3.googleusercontent.com/aida/AEtjO1UI6tm2vAbJVM0D_PvePU9yPJz3sWRPzqE32iV11Gyte3CxA8RAunEiQyHr7oebf0vF5UTj3ee62_1k35NJNpTj41LU8CMBJnTG4wF7hxCLMIA5_m6PtY4lAPGeMmcLESb8zVXVkw5O8dEa6E_G4FB8ormFI0noARZw4BW8p1BrE9pdLY3aJNPiKxvIydSe2vciWQoquCgjqepmOXiCeHW52XgMk8Uyqh6QzeI3PKCHniNYCzCRSlTh00Ek'
+      },
+      {
+        id: 'platao',
+        name: 'PLATÃO',
+        concept: 'Teoria das Ideias & Mito da Caverna',
+        conceptTitle: 'Mundo das Ideias & Caverna',
+        conceptDescription: 'Distinção entre o mundo sensível ilusório e o mundo inteligível das formas puras.',
+        era: 'Antiguidade',
+        icon: 'spa',
+        image: 'https://lh3.googleusercontent.com/aida/AEtjO1XMwYpqm5GQIrqux0ExPy3NXe3wHtU2mUWocT5KTksPnWxCEbGJN1gjf2_UzC9lS9GTu4uzICdOop-y0rGuUcP5cNusJnWDaetcKovKKv_L8dT8LfTNIPQR81t2gCz0oGQCQa7DVK6GDU5X8oeR6uLyKHa3wDEiA4x4YWPFHs3VnwvZzX3HE2yrrznOeP86b8Z6c3W0425uQdCRppAcxIGFl5U_lmEiSpQsyjKox3fAA93zkWheYnw7gJXx'
+      },
+      {
+        id: 'schopenhauer',
+        name: 'ARTHUR SCHOPENHAUER',
+        concept: 'Mundo como Vontade e Representação',
+        conceptTitle: 'Vontade & Representação',
+        conceptDescription: 'A essência cega e universal do mundo que impulsiona todo desejo humano.',
+        era: 'Moderna / Séc. XIX',
+        icon: 'sentiment_dissatisfied',
+        image: 'https://lh3.googleusercontent.com/aida/AEtjO1VmQmuQlc_twRfM9zpDAXCSBVKjnyPqU0GGfRiarxeoXTlpff6wRMPiND7bh_Lksylrjh_Hn2S2fV1rvrVXoIunSAOgaPYl3MxWd-NoA6f1tAi1HEwJ_JGGimN_3A2VnIWZFPhrdCa1tgaLOZkgnMRA0qP3BZm__LLw8IOEXb2v_5ppHHjelgjk_okLjgNvsCAXxzgWyZejl43wMTlSQ3OBYAacJBdXAXM_oW-R20fKIunYfwQRvTIgZ9o'
+      },
+      {
+        id: 'beauvoir',
+        name: 'SIMONE DE BEAUVOIR',
+        concept: 'Existencialismo & Feminismo',
+        conceptTitle: 'Existencialismo & Emancipação',
+        conceptDescription: 'Não se nasce mulher, torna-se mulher. Liberdade e construção da existência.',
+        era: 'Contemporânea',
+        icon: 'auto_stories',
+        image: 'https://lh3.googleusercontent.com/aida/AEtjO1W6_ytP-KtrtKQoIRJkqf9cceELeDZUkbBfrwIc6TqWbhjtZEMZ2V2fCF9TOWDU1eNkw8xaszoyKgP1MPwih54UE9zTMe7Ct2t-9wzXg37NLrLdgNu71AXxUxsCjkfr-vS25bBf0o15GnLiYAFWd27eOu7SjrFcjCOsjGeG0IxBwFolosv5QMOMJIWgI2AWdypUpxVVN6srrrpb6gCDO1UBxLDTCk3nuW519FtnWw7nFj4wgRQe239CH2c'
+      },
+      {
+        id: 'arendt',
+        name: 'HANNAH ARENDT',
+        concept: 'Condição Humana & Política',
+        conceptTitle: 'Ação Política & Espaço Público',
+        conceptDescription: 'A pluralidade humana, o discurso e a capacidade de agir em conjunto na polis.',
+        era: 'Contemporânea',
+        icon: 'public',
+        image: 'https://lh3.googleusercontent.com/aida/AEtjO1VB-a0UtpEITCzP7eexNHnMbezZU0Z3sq6SxOK7eWjoOdpkgNOrlu6VADG6pDqDVtGt3PzPOouY67k2oo4mam-quZ_mqa2vxcXyudCnSUf7wZmbiK7NII37B42r1FVlTHU-uE2L0Rt3i50FQ5GacuT10iJBNpjm-LV0WlTkqgoeLN6krn_zfsXWWNXuYCTtR_Xg8j4V9wTJm4dzecux5iot4ZmnGpbtT6XjM0YwTce9qlNX3my2j5ctUcRU'
+      },
+      {
+        id: 'hypatia',
+        name: 'HIPÁTIA DE ALEXANDRIA',
+        concept: 'Neoplatonismo & Astronomia',
+        conceptTitle: 'Neoplatonismo & Razão',
+        conceptDescription: 'A busca pela sabedoria e harmonia cósmica pela matemática e astronomia.',
+        era: 'Antiguidade Tardia',
+        icon: 'star',
+        image: 'https://lh3.googleusercontent.com/aida/AEtjO1Xn2DVGjzQeWdt_v9FR61osBtPriO8lvfcV_9zb-hREg3tsWxNLnFIiVaCMZExnIbg_nE3yRlvqWbUFDn-4okyYkis59uVNk5GWMUpeb_OeNHdu0sZEf3jhauqpLCAPoQRihgqL_kVNI6Pet4yxWKX03GyVto_yKL5MmR7u_XhQ9QsC2CIwIDy9pr8-f5QSeoabOJmFqAmW1yQaNecisxY97mw4c6orREcJ1VM3DzcSrQlxvBN1U2UZQsBA'
+      }
+    ];
+
+    let currentMode = 'thinkers'; // 'thinkers' or 'concepts'
+    let config = {
+      playersCount: 2,
+      totalRounds: 3,
+      playerNames: ['Sócrates', 'Platão', 'Hannah Arendt', 'Hipátia']
+    };
+
+    let gameState = {
+      currentTheme: 'dark',
+      currentRound: 1,
+      currentTurnIndex: 0,
+      playerScores: [0, 0, 0, 0],
+      playerTotalScores: [0, 0, 0, 0],
+      moves: 0,
+      pairsFound: 0,
+      flippedCards: [],
+      isLocked: false,
+      peekUsedThisRound: false,
+      isPeeking: false,
+      secondsElapsed: 0,
+      timerInterval: null,
+      initialRevealTimer: null
+    };
+
+    let cardsData = [];
+
+    function formatTime(totalSeconds) {
+      const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+      const s = String(totalSeconds % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function switchGameMode(mode) {
+      if (currentMode === mode) return;
+      currentMode = mode;
+      const btnThinkers = document.getElementById('btn-mode-thinkers');
+      const btnConcepts = document.getElementById('btn-mode-concepts');
+      const badgeTitle = document.getElementById('badge-mode-title');
+      const subDesc = document.getElementById('sub-mode-description');
+
+      if (mode === 'thinkers') {
+        btnThinkers.className = "flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-cinzel text-xs font-bold transition bg-gold-500 text-slate-950 shadow-md";
+        btnConcepts.className = "flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-cinzel text-xs font-semibold text-slate-300 hover:text-gold-400 hover:bg-slate-800/50 transition";
+        badgeTitle.textContent = "MODO PENSADORES";
+        subDesc.textContent = "Bustos em mármore & bronze no acervo";
+      } else {
+        btnConcepts.className = "flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-cinzel text-xs font-bold transition bg-gold-500 text-slate-950 shadow-md";
+        btnThinkers.className = "flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-cinzel text-xs font-semibold text-slate-300 hover:text-gold-400 hover:bg-slate-800/50 transition";
+        badgeTitle.textContent = "MODO CONCEITOS";
+        subDesc.textContent = "Conceitos filosóficos & teses fundamentais";
+      }
+      initGame(false);
+    }
+
+    function setTheme(mode) {
+      gameState.currentTheme = mode;
+      const lightBtn = document.getElementById('btn-theme-light');
+      const darkBtn = document.getElementById('btn-theme-dark');
+      if (mode === 'light') {
+        document.body.classList.add('light-mode');
+        lightBtn.className = "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[#854d0e] text-white shadow-sm transition";
+        darkBtn.className = "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-700 hover:text-slate-900 transition";
+      } else {
+        document.body.classList.remove('light-mode');
+        darkBtn.className = "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-gold-500 text-slate-950 shadow-sm transition";
+        lightBtn.className = "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-amber-300 transition";
+      }
+      renderPlayersTurnUI();
+    }
+
+    function initGame(resetRounds = false) {
+      clearInterval(gameState.timerInterval);
+      clearInterval(gameState.initialRevealTimer);
+
+      if (resetRounds) {
+        gameState.currentRound = 1;
+        gameState.playerTotalScores = [0, 0, 0, 0];
+      }
+
+      gameState.currentTurnIndex = 0;
+      gameState.playerScores = [0, 0, 0, 0];
+      gameState.moves = 0;
+      gameState.pairsFound = 0;
+      gameState.flippedCards = [];
+      gameState.isLocked = true;
+      gameState.peekUsedThisRound = false;
+      gameState.isPeeking = false;
+      gameState.secondsElapsed = 0;
+
+      updatePeekButtonState();
+      document.getElementById('moves-count').textContent = '0';
+      document.getElementById('pairs-matched').textContent = '0';
+      document.getElementById('pairs-progress-bar').style.width = '0%';
+      document.getElementById('current-round-text').textContent = gameState.currentRound;
+      document.getElementById('total-rounds-text').textContent = config.totalRounds;
+      document.getElementById('header-players-count').textContent = config.playersCount === 1 ? '1 Solo' : `${config.playersCount} Jogadores`;
+      document.getElementById('game-timer').textContent = '00:00';
+
+      renderPlayersTurnUI();
+
+      let deck = [];
+      PHILOSOPHERS.forEach((phil, index) => {
+        deck.push({ ...phil, uid: `card-${index}-a` });
+        deck.push({ ...phil, uid: `card-${index}-b` });
+      });
+
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      cardsData = deck;
+
+      const board = document.getElementById('board');
+      board.innerHTML = '';
+
+      cardsData.forEach((card, idx) => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card flipped perspective-1000 aspect-[3/4.2] cursor-pointer';
+        cardEl.id = `card-slot-${idx}`;
+        cardEl.dataset.cardId = card.id;
+        cardEl.onclick = () => onCardClicked(idx);
+
+        let frontHTML = '';
+        if (currentMode === 'thinkers') {
+          frontHTML = `
+            <div class="relative w-full h-[68%] bg-black overflow-hidden flex items-center justify-center">
+              <img src="${card.image}" alt="${card.name}" class="w-full h-full object-cover object-center" loading="lazy" />
+            </div>
+            <div class="card-caption h-[32%] px-1 pb-1 flex flex-col justify-center text-center bg-[#141b2c] border-t border-amber-900/30">
+              <h3 class="font-cinzel text-[9.5px] sm:text-[10.5px] font-bold text-gold-400 leading-tight truncate">
+                ${card.name}
+              </h3>
+              <div class="card-concept flex items-center justify-center gap-1 text-[8.5px] sm:text-[9.5px] text-slate-300 italic truncate mt-0.5">
+                <span class="material-symbols-outlined text-[10px] text-gold-400 not-italic">${card.icon}</span>
+                <span class="truncate">${card.concept}</span>
+              </div>
+            </div>
+          `;
+        } else {
+          frontHTML = `
+            <div class="w-full h-full p-2 flex flex-col justify-between bg-gradient-to-b from-[#18233c] to-[#0f172a] text-center relative overflow-hidden">
+              <div class="flex items-center justify-between text-[8px] uppercase tracking-wider text-gold-400 font-bold border-b border-amber-900/40 pb-1">
+                <span>${card.era}</span>
+                <span class="material-symbols-outlined text-[12px]">${card.icon}</span>
+              </div>
+              <div class="my-auto py-1">
+                <div class="w-7 h-7 mx-auto rounded-full bg-gold-500/10 border border-gold-500/30 flex items-center justify-center mb-1 text-gold-400">
+                  <span class="material-symbols-outlined text-[15px]">${card.icon}</span>
+                </div>
+                <h4 class="font-cinzel text-[10px] font-bold text-gold-300 leading-tight mb-1">
+                  ${card.conceptTitle}
+                </h4>
+                <p class="text-[8px] text-slate-300 leading-snug line-clamp-2 italic px-0.5">
+                  "${card.conceptDescription}"
+                </p>
+              </div>
+              <div class="pt-1 border-t border-amber-900/30 text-[8px] font-cinzel text-slate-400 font-bold">
+                ${card.name}
+              </div>
+            </div>
+          `;
+        }
+
+        cardEl.innerHTML = `
+          <div class="card-inner w-full h-full relative transform-style-3d">
+            <!-- BACK FACE: Moeda Grega com Símbolo Φ em Fundo Preto -->
+            <div class="back-card card-back absolute inset-0 w-full h-full rounded-xl bg-[#080c14] border-2 border-amber-900/60 p-1 flex flex-col items-center justify-between shadow-lg backface-hidden overflow-hidden">
+              <div class="w-full h-full border border-amber-900/40 rounded-lg p-1 flex flex-col items-center justify-center relative bg-black">
+                <div class="absolute inset-1 border border-dotted border-amber-600/30 rounded-md pointer-events-none"></div>
+                <div class="coin-outer w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-gold-300 via-gold-500 to-amber-700 p-0.5 shadow-md flex items-center justify-center my-auto">
+                  <div class="coin-inner w-full h-full rounded-full bg-[#151009] border-2 border-gold-400/80 flex items-center justify-center relative overflow-hidden">
+                    <span class="font-cinzel text-gold-400 font-extrabold text-2xl sm:text-3xl tracking-tighter drop-shadow-md">Φ</span>
+                  </div>
+                </div>
+                <div class="font-cinzel text-[9px] tracking-widest text-gold-400/90 font-bold uppercase mt-auto mb-0.5">
+                  MNEMOSINE
+                </div>
+              </div>
+            </div>
+            <!-- FRONT FACE -->
+            <div class="front-card card-front absolute inset-0 w-full h-full rounded-xl bg-[#141b2c] border-2 border-amber-900/50 flex flex-col justify-between shadow-xl rotate-y-180 backface-hidden overflow-hidden">
+              ${frontHTML}
+            </div>
+          </div>
+        `;
+        board.appendChild(cardEl);
+      });
+
+      runInitialMemorization(7);
+    }
+
+    function runInitialMemorization(seconds) {
+      let remaining = seconds;
+      const banner = document.getElementById('status-banner');
+      const bannerText = document.getElementById('banner-text');
+
+      banner.className = "rounded-xl px-3 py-2 bg-gradient-to-r from-amber-950/80 via-amber-900/60 to-amber-950/80 border border-gold-500/70 text-gold-300 text-xs font-semibold flex items-center justify-center gap-2 mb-3 shadow-inner banner-memorize";
+      bannerText.innerHTML = `Início da Partida: Memorize! (<strong>${remaining}s</strong>) • Todas visíveis`;
+
+      document.querySelectorAll('.card').forEach(c => c.classList.add('flipped'));
+
+      clearInterval(gameState.initialRevealTimer);
+      gameState.initialRevealTimer = setInterval(() => {
+        remaining--;
+        if (remaining > 0) {
+          bannerText.innerHTML = `Início da Partida: Memorize! (<strong>${remaining}s</strong>) • Todas visíveis`;
+        } else {
+          clearInterval(gameState.initialRevealTimer);
+          document.querySelectorAll('.card').forEach(c => {
+            if (!c.classList.contains('matched')) {
+              c.classList.remove('flipped');
+            }
+          });
+          gameState.isLocked = false;
+          const currentPlayerName = config.playerNames[gameState.currentTurnIndex];
+          banner.className = "rounded-xl px-3 py-2 bg-slate-800/90 border border-slate-700/60 text-slate-200 text-xs font-medium flex items-center justify-center gap-2 mb-3 banner-turn";
+          bannerText.innerHTML = `Vez de <strong class="text-gold-400 font-bold">${currentPlayerName}</strong> • Escolha duas cartas`;
+          startProgressiveTimer();
+        }
+      }, 1000);
+    }
+
+    function onCardClicked(index) {
+      if (gameState.isLocked || gameState.isPeeking) return;
+      const cardEl = document.getElementById(`card-slot-${index}`);
+      if (cardEl.classList.contains('flipped') || cardEl.classList.contains('matched')) return;
+
+      cardEl.classList.add('flipped');
+      gameState.flippedCards.push({ index, id: cardsData[index].id, el: cardEl });
+
+      if (gameState.flippedCards.length === 2) {
+        gameState.moves++;
+        document.getElementById('moves-count').textContent = gameState.moves;
+        checkPairMatch();
+      }
+    }
+
+    function checkPairMatch() {
+      gameState.isLocked = true;
+      const [cardA, cardB] = gameState.flippedCards;
+
+      if (cardA.id === cardB.id) {
+        setTimeout(() => {
+          cardA.el.classList.add('matched');
+          cardB.el.classList.add('matched');
+
+          gameState.pairsFound++;
+          gameState.playerScores[gameState.currentTurnIndex]++;
+          gameState.playerTotalScores[gameState.currentTurnIndex]++;
+
+          document.getElementById('pairs-matched').textContent = gameState.pairsFound;
+          const progressPercent = (gameState.pairsFound / 6) * 100;
+          document.getElementById('pairs-progress-bar').style.width = `${progressPercent}%`;
+
+          renderPlayersTurnUI();
+
+          const banner = document.getElementById('status-banner');
+          const bannerText = document.getElementById('banner-text');
+          const currentPlayerName = config.playerNames[gameState.currentTurnIndex];
+          banner.className = "rounded-xl px-3 py-2 bg-emerald-950/60 border border-emerald-500/70 text-emerald-300 text-xs font-medium flex items-center justify-center gap-2 mb-3 banner-match";
+          bannerText.innerHTML = `✨ Par encontrado por <strong class="text-gold-400 font-bold">${currentPlayerName}</strong>! Jogue novamente.`;
+
+          gameState.flippedCards = [];
+          gameState.isLocked = false;
+
+          if (gameState.pairsFound === 6) {
+            handleRoundEnd();
+          }
+        }, 400);
+      } else {
+        setTimeout(() => {
+          cardA.el.classList.remove('flipped');
+          cardB.el.classList.remove('flipped');
+          gameState.flippedCards = [];
+
+          gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % config.playersCount;
+          renderPlayersTurnUI();
+
+          const banner = document.getElementById('status-banner');
+          const bannerText = document.getElementById('banner-text');
+          const nextPlayerName = config.playerNames[gameState.currentTurnIndex];
+          banner.className = "rounded-xl px-3 py-2 bg-slate-800/90 border border-slate-700/60 text-slate-200 text-xs font-medium flex items-center justify-center gap-2 mb-3 banner-turn";
+          bannerText.innerHTML = `Vez de <strong class="text-gold-400 font-bold">${nextPlayerName}</strong> • Escolha duas cartas`;
+
+          gameState.isLocked = false;
+        }, 900);
+      }
+    }
+
+    function renderPlayersTurnUI() {
+      const container = document.getElementById('players-turn-container');
+      container.innerHTML = '';
+
+      if (config.playersCount === 1) {
+        container.className = "grid grid-cols-1 gap-2";
+      } else {
+        container.className = "grid grid-cols-2 gap-2";
+      }
+
+      for (let i = 0; i < config.playersCount; i++) {
+        const isCurrent = (i === gameState.currentTurnIndex);
+        const name = config.playerNames[i];
+        const score = gameState.playerScores[i];
+
+        const pCard = document.createElement('div');
+        pCard.className = `rounded-xl p-2.5 transition-all duration-300 relative flex flex-col justify-between min-h-[70px] ${
+          isCurrent 
+            ? 'player-card-active border-2 border-gold-500 bg-gold-500/10 shadow-sm' 
+            : 'player-card-inactive border border-slate-700/60 bg-slate-800/40 opacity-75'
+        }`;
+
+        pCard.innerHTML = `
+          <div class="flex items-start justify-between gap-1 mb-1">
+            <div class="flex items-center gap-1.5 flex-1 min-w-0">
+              <span class="w-4 h-4 rounded-full ${isCurrent ? 'bg-gold-500 text-slate-950 font-black' : 'bg-slate-700 text-slate-300 font-bold'} text-[10px] flex items-center justify-center shrink-0">${i + 1}</span>
+              <span class="player-name-text text-xs font-bold uppercase tracking-wider ${isCurrent ? 'text-gold-300' : 'text-slate-300'} truncate">${name}</span>
+            </div>
+            ${isCurrent ? '<span class="bg-gold-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase shrink-0">SUA VEZ</span>' : ''}
+          </div>
+          <div class="flex items-baseline justify-between pt-1 border-t border-slate-700/30">
+            <span class="text-[10px] text-slate-400">Pares:</span>
+            <span class="player-score-text text-base font-cinzel font-bold ${isCurrent ? 'text-gold-400' : 'text-slate-200'}">${score} <span class="player-score-unit text-[9px] font-sans font-normal text-slate-400">PARES</span></span>
+          </div>
+        `;
+        container.appendChild(pCard);
+      }
+    }
+
+    function triggerPeek() {
+      if (gameState.peekUsedThisRound || gameState.isLocked || gameState.isPeeking) return;
+
+      gameState.isPeeking = true;
+      gameState.peekUsedThisRound = true;
+      updatePeekButtonState();
+
+      document.querySelectorAll('.card').forEach(c => c.classList.add('flipped'));
+
+      let countdown = 10;
+      const banner = document.getElementById('status-banner');
+      const bannerText = document.getElementById('banner-text');
+
+      banner.className = "rounded-xl px-3 py-2 bg-gradient-to-r from-amber-950/80 via-amber-900/60 to-amber-950/80 border border-gold-500/70 text-gold-300 text-xs font-semibold flex items-center justify-center gap-2 mb-3 shadow-inner banner-memorize";
+      bannerText.innerHTML = `👁️ Revelando Tabuleiro: <strong>${countdown}s</strong> restantes`;
+
+      const peekTimer = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          bannerText.innerHTML = `👁️ Revelando Tabuleiro: <strong>${countdown}s</strong> restantes`;
+        } else {
+          clearInterval(peekTimer);
+          document.querySelectorAll('.card').forEach(c => {
+            if (!c.classList.contains('matched')) {
+              c.classList.remove('flipped');
+            }
+          });
+          gameState.isPeeking = false;
+          const currentPlayerName = config.playerNames[gameState.currentTurnIndex];
+          banner.className = "rounded-xl px-3 py-2 bg-slate-800/90 border border-slate-700/60 text-slate-200 text-xs font-medium flex items-center justify-center gap-2 mb-3 banner-turn";
+          bannerText.innerHTML = `Vez de <strong class="text-gold-400 font-bold">${currentPlayerName}</strong> • Escolha duas cartas`;
+        }
+      }, 1000);
+    }
+
+    function updatePeekButtonState() {
+      const btnPeek = document.getElementById('btn-peek');
+      const badge = document.getElementById('peek-badge');
+      const label = document.getElementById('peek-label');
+
+      if (gameState.peekUsedThisRound) {
+        btnPeek.classList.add('opacity-40', 'cursor-not-allowed');
+        badge.textContent = 'USADO';
+        badge.className = 'absolute -top-1.5 -right-2 bg-slate-700 text-slate-300 text-[8px] font-bold px-1 rounded-full';
+        label.textContent = 'Esgotado';
+      } else {
+        btnPeek.classList.remove('opacity-40', 'cursor-not-allowed');
+        badge.textContent = '10s';
+        badge.className = 'absolute -top-1.5 -right-2 bg-gold-500 text-slate-950 text-[9px] font-black px-1 rounded-full border border-slate-900';
+        label.textContent = 'Revelado (10s)';
+      }
+    }
+
+    function startProgressiveTimer() {
+      clearInterval(gameState.timerInterval);
+      const timerEl = document.getElementById('game-timer');
+      timerEl.textContent = formatTime(gameState.secondsElapsed);
+
+      gameState.timerInterval = setInterval(() => {
+        gameState.secondsElapsed++;
+        timerEl.textContent = formatTime(gameState.secondsElapsed);
+      }, 1000);
+    }
+
+    function handleRoundEnd() {
+      clearInterval(gameState.timerInterval);
+      setTimeout(() => {
+        const isMatchComplete = gameState.currentRound >= config.totalRounds;
+        openVictoryModal(isMatchComplete);
+      }, 600);
+    }
+
+    function openVictoryModal(isMatchComplete) {
+      const modal = document.getElementById('modal-victory');
+      const title = document.getElementById('winner-title');
+      const subtitle = document.getElementById('winner-subtitle');
+      const btnText = document.getElementById('btn-victory-text');
+      const breakdownContainer = document.getElementById('victory-players-breakdown');
+      const roundsLabel = document.getElementById('victory-rounds-label');
+      const totalTimeDisplay = document.getElementById('victory-total-time');
+
+      roundsLabel.textContent = `Rodada ${gameState.currentRound} de ${config.totalRounds}`;
+      if (totalTimeDisplay) totalTimeDisplay.textContent = formatTime(gameState.secondsElapsed);
+
+      let ranking = [];
+      for (let i = 0; i < config.playersCount; i++) {
+        ranking.push({
+          index: i,
+          name: config.playerNames[i],
+          roundScore: gameState.playerScores[i],
+          totalScore: gameState.playerTotalScores[i]
+        });
+      }
+      ranking.sort((a, b) => b.totalScore - a.totalScore);
+
+      const winner = ranking[0];
+      const isTie = ranking.length > 1 && ranking[0].totalScore === ranking[1].totalScore;
+
+      if (isMatchComplete) {
+        if (isTie) {
+          title.textContent = `Empate Filosófico!`;
+          subtitle.textContent = `Confronto empatado com sabedoria mútua.`;
+        } else {
+          title.textContent = `${winner.name} Campeão!`;
+          subtitle.textContent = `Grande campeão após ${config.totalRounds} rodadas de pura memória!`;
+        }
+        btnText.textContent = "Iniciar Nova Partida";
+      } else {
+        title.textContent = `Fim da Rodada ${gameState.currentRound}!`;
+        subtitle.textContent = `Liderança com ${winner.name}. Preparem-se para a próxima!`;
+        btnText.textContent = `Avançar para Rodada ${gameState.currentRound + 1}`;
+      }
+
+      breakdownContainer.innerHTML = '';
+      ranking.forEach((r, rankIdx) => {
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-2 rounded-xl bg-slate-800/60 border border-slate-700/50";
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full ${rankIdx === 0 ? 'bg-gold-500 text-slate-950 font-black' : 'bg-slate-700 text-slate-300 font-bold'} text-xs flex items-center justify-center">
+              ${rankIdx + 1}
+            </span>
+            <div>
+              <div class="text-xs font-bold text-slate-200">${r.name}</div>
+              <div class="text-[10px] text-slate-400">Jogador ${r.index + 1}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs font-cinzel font-bold text-gold-400">${r.totalScore} pares</div>
+          </div>
+        `;
+        breakdownContainer.appendChild(div);
+      });
+
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      modal.querySelector('.modal-content').classList.remove('scale-90');
+      modal.querySelector('.modal-content').classList.add('scale-100');
+    }
+
+    function closeVictoryModal() {
+      const modal = document.getElementById('modal-victory');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function nextRoundOrRestart() {
+      closeVictoryModal();
+      if (gameState.currentRound >= config.totalRounds) {
+        initGame(true);
+      } else {
+        gameState.currentRound++;
+        initGame(false);
+      }
+    }
+
+    function restartGame() {
+      if (confirm("Deseja reiniciar a partida e reembaralhar as cartas?")) {
+        initGame(true);
+      }
+    }
+
+    function openAboutModal() {
+      const modal = document.getElementById('modal-about');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      modal.querySelector('.modal-content').classList.remove('translate-y-8');
+      modal.querySelector('.modal-content').classList.add('translate-y-0');
+    }
+
+    function closeAboutModal() {
+      const modal = document.getElementById('modal-about');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      modal.querySelector('.modal-content').classList.add('translate-y-8');
+    }
+
+    function handleAboutBackdropClick(event) {
+      if (event.target.id === 'modal-about') closeAboutModal();
+    }
+
+    function openConfigModal() {
+      const modal = document.getElementById('modal-config');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      modal.querySelector('.modal-content').classList.remove('translate-y-8');
+      modal.querySelector('.modal-content').classList.add('translate-y-0');
+    }
+
+    function closeConfigModal() {
+      const modal = document.getElementById('modal-config');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      modal.querySelector('.modal-content').classList.add('translate-y-8');
+    }
+
+    function handleConfigBackdropClick(event) {
+      if (event.target.id === 'modal-config') closeConfigModal();
+    }
+
+    let tempPlayers = 2;
+    let tempRounds = 3;
+
+    function selectPlayers(count) {
+      tempPlayers = count;
+      [1, 2, 3, 4].forEach(n => {
+        const btn = document.getElementById(`btn-p-${n}`);
+        if (n === count) {
+          btn.className = "py-2 rounded-xl border-2 border-gold-500 bg-gold-500/10 text-gold-300 text-xs font-bold flex flex-col items-center gap-1 hover:border-gold-500 transition";
+        } else {
+          btn.className = "py-2 rounded-xl border border-slate-700 text-slate-300 text-xs font-bold flex flex-col items-center gap-1 hover:border-gold-500 transition";
+        }
+      });
+      document.getElementById('input-p2-wrapper').className = count >= 3 ? 'block' : 'hidden';
+      document.getElementById('input-p3-wrapper').className = count >= 4 ? 'block' : 'hidden';
+      const labels = { 1: '1 Filósofo Solo', 2: '2 Filósofos', 3: '3 Filósofos', 4: '4 Filósofos' };
+      document.getElementById('modal-selected-players-label').textContent = labels[count];
+    }
+
+    function selectRounds(count) {
+      tempRounds = count;
+      [1, 3, 5, 7].forEach(n => {
+        const btn = document.getElementById(`btn-r-${n}`);
+        if (n === count) {
+          btn.className = "p-2.5 rounded-xl border-2 border-gold-500 bg-gold-500/10 text-left hover:border-gold-500 transition";
+          btn.querySelector('div:first-child').className = "font-bold text-xs text-gold-300";
+        } else {
+          btn.className = "p-2.5 rounded-xl border border-slate-700 text-left hover:border-gold-500 transition";
+          btn.querySelector('div:first-child').className = "font-bold text-xs text-slate-200";
+        }
+      });
+      const roundLabels = { 1: '1 Rodada (Rápida)', 3: '3 Rodadas (Clássica)', 5: '5 Rodadas (Torneio)', 7: '7 Rodadas (Maratona)' };
+      document.getElementById('modal-selected-rounds-label').textContent = roundLabels[count];
+    }
+
+    function applyGameConfig() {
+      config.playersCount = tempPlayers;
+      config.totalRounds = tempRounds;
+      config.playerNames[0] = document.getElementById('input-p0').value || 'Sócrates';
+      config.playerNames[1] = document.getElementById('input-p1').value || 'Platão';
+      config.playerNames[2] = document.getElementById('input-p2').value || 'Hannah Arendt';
+      config.playerNames[3] = document.getElementById('input-p3').value || 'Hipátia';
+      closeConfigModal();
+      initGame(true);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initGame(true);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "Remix Mnemosine - Jogo da Memória Filosófico",
+  "description": "Jogo da memória filosófico com bustos 3D realistas de pensadores clássicos, modo conceitos, suporte multijogador e torneio de rodadas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
